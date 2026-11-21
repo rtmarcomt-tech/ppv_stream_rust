@@ -143,7 +143,7 @@ function render(list) {
     const desc = (v.description || '').trim();
     return `<div class="col">
       <div class="card h-100 shadow-sm video-card" onclick="location.href='/public/watch.html?video_id=${esc(v.id)}'">
-        ${v.media_type === 'photo' ? `<img src="/media/photo/${esc(v.id)}" alt="" class="card-img-top" style="width:100%;height:220px;object-fit:cover">` : ''}
+        ${v.media_type === 'photo' ? '<div class="card-img-top d-flex align-items-center justify-content-center bg-body-tertiary text-body-secondary" style="height:120px"><span class="fs-1" aria-hidden="true">▧</span></div>' : ''}
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start mb-1">
             <h6 class="card-title fw-bold mb-0 me-2">${esc(v.title)}</h6>
