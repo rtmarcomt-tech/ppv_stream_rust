@@ -28,6 +28,8 @@ pub struct VideoItem {
     pub description: String,
     pub price_cents: i64,
     pub filename: String,
+    pub media_type: String,
+    pub hls_ready: bool,
     pub created_at: String,
 }
 
@@ -43,6 +45,8 @@ pub async fn list_videos(State(st): State<VideoState>) -> impl IntoResponse {
           COALESCE(v.description, '')  AS description,
           v.price_cents,
           v.filename,
+          COALESCE(v.media_type, 'video') AS media_type,
+          COALESCE(v.hls_ready, FALSE) AS hls_ready,
           v.created_at::text           AS created_at
         FROM videos v
         LEFT JOIN users u ON u.id = v.owner_id
@@ -73,6 +77,8 @@ pub async fn list_videos(State(st): State<VideoState>) -> impl IntoResponse {
             description: r.try_get::<String, _>("description").unwrap_or_default(),
             price_cents: r.try_get::<i64, _>("price_cents").unwrap_or(0),
             filename: r.try_get::<String, _>("filename").unwrap_or_default(),
+            media_type: r.try_get::<String, _>("media_type").unwrap_or_else(|_| "video".into()),
+            hls_ready: r.try_get::<bool, _>("hls_ready").unwrap_or(false),
             created_at: r.try_get::<String, _>("created_at").unwrap_or_default(),
         })
         .collect();
@@ -91,6 +97,8 @@ struct MyVideo {
     created_at: String,
     allow_count: usize,
     allow_users: Vec<String>,
+    media_type: String,
+    hls_ready: bool,
 }
 
 pub async fn my_videos(State(st): State<VideoState>, cookies: Cookies) -> impl IntoResponse {
@@ -103,7 +111,9 @@ pub async fn my_videos(State(st): State<VideoState>, cookies: Cookies) -> impl I
         r#"
         SELECT id, title, COALESCE(description,'') AS description,
                price_cents, created_at::text AS created_at,
-               price_currency, price_idr
+               price_currency, price_idr,
+               COALESCE(media_type, 'video') AS media_type,
+               COALESCE(hls_ready, FALSE) AS hls_ready
         FROM videos
         WHERE owner_id = $1
         ORDER BY created_at DESC
@@ -144,6 +154,8 @@ pub async fn my_videos(State(st): State<VideoState>, cookies: Cookies) -> impl I
             created_at: v.try_get::<String, _>("created_at").unwrap_or_default(),
             allow_count: allow_users.len(),
             allow_users,
+            media_type: v.try_get::<String, _>("media_type").unwrap_or_else(|_| "video".into()),
+            hls_ready: v.try_get::<bool, _>("hls_ready").unwrap_or(false),
         });
     }
 
