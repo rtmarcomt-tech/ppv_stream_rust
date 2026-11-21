@@ -1,8 +1,8 @@
 # PPV Stream Rust
 
-Open source, self hosted, white label video commerce platform built with Rust, Axum, PostgreSQL, FFmpeg, and a browser based HTML and JavaScript frontend.
+Open source, self hosted, white label photo and video commerce platform built with Rust, Axum, PostgreSQL, FFmpeg, and a browser based HTML and JavaScript frontend.
 
-PPV Stream Rust lets creators upload videos, set prices, sell access through multiple payment methods, stream protected HLS video, manage internal wallet balances, run affiliate programs, chat with users, and optionally federate public platform data between independent installations.
+PPV Stream Rust lets creators upload photos and videos, set prices, sell access individually, stream protected HLS video, manage internal wallet balances, run affiliate programs, chat with users, and optionally federate public platform data between independent installations.
 
 ## Project status
 
@@ -12,12 +12,16 @@ Current package version: `0.2.0`
 
 ## Main capabilities
 
-### Video commerce
+### Photo and video commerce
 
+* Creator upload of individual photos (JPEG, PNG, WebP, AVIF) and videos (MP4, MKV, MOV, WebM)
+* Photo originals are stored without video transcoding; video uploads continue through the HLS processing queue
+* Photo delivery checks the signed-in user's owner, admin, allowlist, or completed-purchase entitlement before returning the original image
+* Photos and videos share the existing catalog and content IDs so existing individual purchase and access records remain compatible
 * Creator video upload with extension checks, MIME validation, upload size limits, temporary files, and atomic rename
 * PostgreSQL backed video catalog and ownership records
-* Configurable video price
-* Manual allowlist access and automatic access after successful purchase
+* Configurable individual content price
+* Manual allowlist access and automatic access after successful purchase for photos and videos
 * Creator profile and public profile endpoints
 
 ### Streaming and content protection
