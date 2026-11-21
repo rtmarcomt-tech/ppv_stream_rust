@@ -409,22 +409,24 @@ pub async fn upload_media(
     };
 
     let created_at = chrono::Utc::now().to_rfc3339();
-    if let Err(e) = sqlx::query!(
+    if let Err(e) = sqlx::query(
         r#"
         INSERT INTO videos
             (id, owner_id, title, price_cents, filename, created_at, hls_ready, processing_state, media_type)
         VALUES
             ($1, $2, $3, $4, $5, $6, FALSE, $7, $8)
         "#,
-        video_id,
-        &user_id,
-        title,
-        price_cents,
-        saved_filename_only,
-        created_at,
-        if media_type == "photo" { "ready" } else { "queued" },
-        media_type
     )
+    .bind(&video_id)
+    .bind(&user_id)
+    .bind(&title)
+    .bind(price_cents)
+    .bind(&saved_filename_only)
+    .bind(&created_at)
+    .bind(if media_type == "photo" { "ready" } else { "queued" })
+    .bind(&media_type)
+    .execute(&st.pool)
+    .await
     .execute(&st.pool)
     .await
     {
