@@ -49,7 +49,7 @@ pub struct UploadState {
     pub storage: Arc<dyn StoragePlugin>,
 }
 
-pub async fn upload_video(
+pub async fn upload_media(
     State(st): State<UploadState>,
     cookies: Cookies,
     mut multipart: Multipart,
@@ -80,6 +80,7 @@ pub async fn upload_video(
     }
 
     let mut title = String::from("Untitled");
+    let mut media_type = String::from("video");
     let mut price_cents: i64 = 0;
     // Optional rupiah pricing: price_currency=IDR + price_idr (whole rupiah).
     let mut price_currency = String::from("USD");
@@ -135,6 +136,12 @@ pub async fn upload_video(
                     .trim()
                     .to_ascii_uppercase();
             }
+            "media_type" => {
+                media_type = field.text().await.unwrap_or_else(|_| "video".into()).trim().to_ascii_lowercase();
+                if media_type != "video" && media_type != "photo" {
+                    return (StatusCode::BAD_REQUEST, Json(json!({"ok": false, "where": "validation", "error": "media_type must be video or photo"}))).into_response();
+                }
+            }
             "price_idr" => {
                 price_idr = field
                     .text()
@@ -165,15 +172,18 @@ pub async fn upload_video(
                     .and_then(|name| Path::new(name).extension().and_then(|ext| ext.to_str()))
                     .map(|ext| ext.to_ascii_lowercase())
                     .filter(|ext| !ext.is_empty())
-                    .unwrap_or_else(|| "mp4".to_string());
+                    .unwrap_or_else(|| if media_type == "photo" { "jpg".to_string() } else { "mp4".to_string() });
 
-                if !allowed_extensions.contains(&extension) {
+                let extension_allowed = if media_type == "photo" {
+                    matches!(extension.as_str(), "jpg" | "jpeg" | "png" | "webp" | "avif")
+                } else { allowed_extensions.contains(&extension) };
+                if !extension_allowed {
                     return (
                         StatusCode::BAD_REQUEST,
                         Json(json!({
                             "ok": false,
                             "where": "validation",
-                            "error": format!("file extension not allowed: .{}", extension)
+                            "error": format!("file extension not allowed for {}: .{}", media_type, extension)
                         })),
                     )
                         .into_response();
@@ -277,13 +287,16 @@ pub async fn upload_video(
                         Json(json!({
                             "ok": false,
                             "where": "validation",
-                            "error": "unable to detect a supported video MIME type"
+                            "error": "unable to detect a supported media MIME type"
                         })),
                     )
                         .into_response();
                 };
 
-                if !kind.mime_type().starts_with("video/") {
+                let supported_mime = if media_type == "photo" {
+                    matches!(kind.mime_type(), "image/jpeg" | "image/png" | "image/webp" | "image/avif")
+                } else { kind.mime_type().starts_with("video/") };
+                if !supported_mime {
                     let mime_type = kind.mime_type().to_string();
                     let _ = fs::remove_file(&temporary_path).await;
                     return (
@@ -291,7 +304,7 @@ pub async fn upload_video(
                         Json(json!({
                             "ok": false,
                             "where": "validation",
-                            "error": format!("uploaded content is not a video: {}", mime_type)
+                            "error": format!("uploaded content does not match media type {}: {}", media_type, mime_type)
                         })),
                     )
                         .into_response();
@@ -399,16 +412,18 @@ pub async fn upload_video(
     if let Err(e) = sqlx::query!(
         r#"
         INSERT INTO videos
-            (id, owner_id, title, price_cents, filename, created_at, hls_ready, processing_state)
+            (id, owner_id, title, price_cents, filename, created_at, hls_ready, processing_state, media_type)
         VALUES
-            ($1, $2, $3, $4, $5, $6, FALSE, 'queued')
+            ($1, $2, $3, $4, $5, $6, FALSE, $7, $8)
         "#,
         video_id,
         &user_id,
         title,
         price_cents,
         saved_filename_only,
-        created_at
+        created_at,
+        if media_type == "photo" { "ready" } else { "queued" },
+        media_type
     )
     .execute(&st.pool)
     .await
@@ -431,6 +446,25 @@ pub async fn upload_video(
         {
             tracing::warn!(%video_id, "could not store rupiah price: {e}");
         }
+    }
+
+    if media_type == "photo" {
+        if !st.storage.is_local() {
+            let storage = st.storage.clone();
+            let key = format!("uploads/{saved_filename_only}");
+            let path = saved_path.clone();
+            tokio::spawn(async move {
+                if let Err(e) = storage.put_file(&key, &path).await {
+                    tracing::warn!("storage: photo push {key} failed: {e}");
+                }
+            });
+        }
+        info!(%video_id, size = %ByteSize(total_bytes), "photo upload ok");
+        return (StatusCode::CREATED, Json(json!({
+            "ok": true, "video_id": video_id, "owner_id": user_id,
+            "filename": saved_filename_only, "media_type": "photo", "status": "ready",
+            "message": "Photo uploaded successfully."
+        }))).into_response();
     }
 
     let output_dir = st.cfg.video_hls_dir(&video_id);
@@ -485,6 +519,7 @@ pub async fn upload_video(
             "video_id": video_id,
             "owner_id": user_id,
             "filename": saved_filename_only,
+            "media_type": "video",
             "status": "queued",
             "message": "Upload succeeded. The video is being processed into HLS."
         })),
