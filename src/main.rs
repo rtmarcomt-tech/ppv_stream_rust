@@ -77,7 +77,8 @@ async fn start_http_server(cfg: config::Config, pool: sqlx::PgPool) -> anyhow::R
         },
         setup::{setup_admin, SetupState},
         stream::{request_play, serve_hls, start_cleanup_task, StreamState},
-        upload::{upload_video, UploadState},
+        upload::{upload_media, UploadState},
+        photos::{photo_access, serve_photo, PhotoState},
         users::{get_my_profile, public_profile, update_my_profile, UsersState},
         video::{add_allow, list_videos, my_videos, update_video, user_lookup, VideoState},
         wallet::{
@@ -203,7 +204,7 @@ async fn start_http_server(cfg: config::Config, pool: sqlx::PgPool) -> anyhow::R
         });
 
     let upload_router = Router::new()
-        .route("/api/upload", post(upload_video))
+        .route("/api/upload", post(upload_media))
         .with_state(UploadState {
             cfg: cfg.clone(),
             pool: pool.clone(),
@@ -213,6 +214,11 @@ async fn start_http_server(cfg: config::Config, pool: sqlx::PgPool) -> anyhow::R
         .layer(DefaultBodyLimit::max(
             cfg.max_upload_bytes.try_into().unwrap_or(usize::MAX),
         ));
+
+    let photo_router = Router::new()
+        .route("/media/photo/:id", get(serve_photo))
+        .route("/api/photo_access/:id", get(photo_access))
+        .with_state(PhotoState { pool: pool.clone(), cfg: cfg.clone() });
 
     let video_router = Router::new()
         .route("/api/videos", get(list_videos))
@@ -373,6 +379,7 @@ async fn start_http_server(cfg: config::Config, pool: sqlx::PgPool) -> anyhow::R
         .merge(admin_auth_router)
         .merge(setup_router)
         .merge(upload_router)
+        .merge(photo_router)
         .merge(video_router)
         .merge(payment_plugin_router)
         .merge(users_router)
