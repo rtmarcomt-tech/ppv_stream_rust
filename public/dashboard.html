@@ -143,7 +143,7 @@
   <!-- My Videos -->
   <div class="card shadow-sm mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span class="fw-semibold me-auto">My Videos &amp; Access</span>
+      <span class="fw-semibold me-auto">My Content &amp; Access</span>
       <button id="refreshBtn" class="btn btn-sm btn-outline-secondary">↻ Refresh</button>
     </div>
     <div class="card-body">
@@ -153,10 +153,14 @@
 
   <!-- Upload -->
   <div class="card shadow-sm mb-4">
-    <div class="card-header fw-semibold">Upload Video</div>
+    <div class="card-header fw-semibold">Upload Photo or Video</div>
     <div class="card-body">
       <form id="uploadForm" enctype="multipart/form-data">
         <div class="row g-3">
+          <div class="col-12 col-md-4">
+            <label for="upType" class="form-label">Content type</label>
+            <select id="upType" name="media_type" class="form-select" onchange="updateUploadAccept()"><option value="video">Video</option><option value="photo">Photo</option></select>
+          </div>
           <div class="col-md-8">
             <label for="upTitle" class="form-label">Title</label>
             <input id="upTitle" name="title" class="form-control" value="Untitled" required maxlength="160">
@@ -177,8 +181,9 @@
             <textarea id="upDesc" name="description" rows="2" class="form-control" placeholder="Brief summary of this video…"></textarea>
           </div>
           <div class="col-12">
-            <label for="upFile" class="form-label">MP4 File</label>
+            <label for="upFile" class="form-label">File</label>
             <input id="upFile" name="file" type="file" accept="video/mp4" class="form-control" required>
+            <div id="upFileHelp" class="form-text">MP4, MKV, MOV or WebM video. Videos are processed automatically.</div>
           </div>
           <div class="col-12 d-flex flex-column flex-sm-row align-items-sm-center gap-2">
             <button class="btn btn-primary" type="submit">Upload</button>
@@ -355,6 +360,13 @@ async function loadDashboardWallet() {
 })();
 
 // ── upload ──
+function updateUploadAccept() {
+  const photo = document.getElementById('upType').value === 'photo';
+  document.getElementById('upFile').accept = photo ? 'image/jpeg,image/png,image/webp,image/avif' : 'video/mp4,video/x-matroska,video/quicktime,video/webm';
+  document.getElementById('upFileHelp').textContent = photo ? 'JPEG, PNG, WebP or AVIF. Original image stored without transcoding.' : 'MP4, MKV, MOV or WebM. Videos are processed automatically.';
+}
+updateUploadAccept();
+
 document.getElementById('uploadForm').onsubmit = async e => {
   e.preventDefault();
   try {
@@ -364,7 +376,7 @@ document.getElementById('uploadForm').onsubmit = async e => {
     Object.entries(price).forEach(([k, val]) => fd.set(k, val));
     const j = await fetch('/api/upload', { method:'POST', body: fd }).then(r=>r.json());
     if (j.ok === false) return alert('Upload failed: ' + (j.error || 'unknown'));
-    alert('Upload successful! Video ID: ' + j.video_id);
+    alert((j.media_type === 'photo' ? 'Photo' : 'Video') + ' uploaded successfully. ID: ' + j.video_id);
     e.target.reset();
     await loadMyVideos(); await renderMyVideos();
   } catch(e2) { alert('Upload failed: ' + e2); }
@@ -464,13 +476,13 @@ async function renderMyVideos() {
   try {
     const j = await fetch('/api/my_videos').then(r=>r.json());
     if (!j.ok) { box.innerHTML = `<p class="text-body-secondary">Failed: ${esc(j.error||'unknown')}</p>`; return; }
-    if (!Array.isArray(j.videos) || !j.videos.length) { box.innerHTML = '<p class="text-body-secondary">No videos uploaded yet.</p>'; return; }
+    if (!Array.isArray(j.videos) || !j.videos.length) { box.innerHTML = '<p class="text-body-secondary">No content uploaded yet.</p>'; return; }
     box.innerHTML = j.videos.map(v => {
       const users = (v.allow_users||[]).map(u=>`<code>${esc(u)}</code>`).join(', ');
       return `<div class="card mb-3"><div class="card-body">
         <div class="d-flex align-items-start justify-content-between mb-1">
           <h6 class="card-title fw-bold mb-0">${esc(v.title)}</h6>
-          <span class="badge ${v.hls_ready ? 'bg-success-subtle text-success-emphasis border border-success-subtle' : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle'}" style="font-size:.65rem">${v.hls_ready ? '▶ Ready' : '⏳ Processing'}</span>
+          <span class="badge ${v.media_type === 'photo' || v.hls_ready ? 'bg-success-subtle text-success-emphasis border border-success-subtle' : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle'}" style="font-size:.65rem">${v.media_type === 'photo' ? '▧ Photo' : (v.hls_ready ? '▶ Ready' : '⏳ Processing')}</span>
         </div>
         <p class="text-body-secondary small mb-2">ID: <code>${esc(v.id)}</code> &nbsp;•&nbsp; Created: ${esc(v.created_at)} &nbsp;•&nbsp; Price: <strong>${esc(priceLabel(v))}</strong></p>
         <details class="mb-2">
