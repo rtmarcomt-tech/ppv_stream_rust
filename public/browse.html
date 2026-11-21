@@ -33,7 +33,7 @@
 </nav>
 
 <div class="container py-4 pb-5">
-  <h1 class="mb-1 fs-4 fw-bold">Browse Videos</h1>
+  <h1 class="mb-1 fs-4 fw-bold">Browse Photos &amp; Videos</h1>
   <p class="text-body-secondary small mb-4" data-platform="tagline">Pay-Per-View Streaming Platform</p>
 
   <div class="row g-2 mb-4">
@@ -128,21 +128,22 @@ function applyFilters() {
 function render(list) {
   const w = document.getElementById('videos');
   if (!list.length) {
-    w.innerHTML = '<div class="col-12"><p class="text-body-secondary">No videos found.</p></div>';
+    w.innerHTML = '<div class="col-12"><p class="text-body-secondary">No content found.</p></div>';
     return;
   }
   w.innerHTML = list.map(v => {
     const priceTxt = v.price_cents > 0 ? 'Rp ' + fmt.format(Math.round(v.price_cents / 100 * USD_TO_IDR)) : 'Free';
     const priceClass = v.price_cents > 0 ? 'text-primary' : 'text-success';
-    const hlsBadge = v.hls_ready
-      ? '<span class="badge bg-success-subtle text-success-emphasis border border-success-subtle" style="font-size:.65rem">Ready</span>'
-      : '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-size:.65rem">Processing</span>';
+    const hlsBadge = v.media_type === 'photo'
+      ? '<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle" style="font-size:.65rem">Photo</span>'
+      : (v.hls_ready ? '<span class="badge bg-success-subtle text-success-emphasis border border-success-subtle" style="font-size:.65rem">Ready</span>' : '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-size:.65rem">Processing</span>');
     const affiliateBadge = v.affiliate_enabled
       ? `<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle" style="font-size:.65rem">${esc(String(v.affiliate_pct || 0))}% affiliate</span>`
       : '';
     const desc = (v.description || '').trim();
     return `<div class="col">
       <div class="card h-100 shadow-sm video-card" onclick="location.href='/public/watch.html?video_id=${esc(v.id)}'">
+        ${v.media_type === 'photo' ? `<img src="/media/photo/${esc(v.id)}" alt="" class="card-img-top" style="width:100%;height:220px;object-fit:cover">` : ''}
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start mb-1">
             <h6 class="card-title fw-bold mb-0 me-2">${esc(v.title)}</h6>
