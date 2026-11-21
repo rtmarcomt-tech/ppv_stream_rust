@@ -117,7 +117,9 @@ async function init() {
 
   let playResp = null;
   try {
-    const resp = await fetch('/api/request_play?' + new URLSearchParams({ video_id: VIDEO_ID }));
+    const resp = currentVideo.media_type === 'photo'
+      ? await fetch('/api/photo_access/' + encodeURIComponent(VIDEO_ID))
+      : await fetch('/api/request_play?' + new URLSearchParams({ video_id: VIDEO_ID }));
     playResp = await resp.json();
   } catch {}
 
@@ -130,7 +132,7 @@ function renderPage(playResp) {
   const priceUsd = (priceCents / 100).toFixed(2);
   const priceIdr = 'Rp ' + fmtIdr.format(Math.round(priceCents / 100 * USD_TO_IDR));
   const affiliateEnabled = !!(paymentOptions && paymentOptions.ok && paymentOptions.video_id);
-  const hasAccess = !!(playResp && playResp.ok && playResp.playlist);
+  const hasAccess = !!(playResp && playResp.ok && (video.media_type === "photo" ? playResp.access : playResp.playlist));
 
   let html = `
     <div class="mb-3">
@@ -148,7 +150,7 @@ function renderPage(playResp) {
     html += `<div class="alert alert-info py-2 small mb-4">This visit includes affiliate referral code <strong>${esc(REF)}</strong>.</div>`;
   }
 
-  html += hasAccess ? renderPlayer(playResp.playlist) : renderLocked(priceUsd, priceIdr);
+  html += hasAccess ? (video.media_type === "photo" ? `<div class="text-center bg-black rounded shadow mb-3 p-2"><img src="/media/photo/${esc(video.id)}" alt="${esc(video.title)}" class="img-fluid" style="max-height:80vh;object-fit:contain"></div>` : renderPlayer(playResp.playlist)) : renderLocked(priceUsd, priceIdr);
 
   if (video.description) {
     html += `<div class="card shadow-sm mt-4"><div class="card-body"><h6 class="fw-semibold mb-2">About this video</h6><p class="mb-0 small text-body-secondary">${esc(video.description)}</p></div></div>`;
@@ -157,7 +159,7 @@ function renderPage(playResp) {
   document.getElementById('mainContent').innerHTML = html;
 
   if (hasAccess) {
-    startPlayer(playResp.playlist);
+    if (video.media_type !== 'photo') startPlayer(playResp.playlist);
   } else {
     bindLockedState();
   }
@@ -190,7 +192,7 @@ function renderLocked(priceUsd, priceIdr) {
     <div class="ratio ratio-16x9 rounded overflow-hidden bg-black mb-4 shadow d-flex align-items-center justify-content-center">
       <div class="text-center text-white p-4">
         <div class="fs-2 fw-bold">Locked</div>
-        <div class="mt-2">Purchase this video to unlock playback.</div>
+        <div class="mt-2">Purchase this content to unlock access.</div>
         <div class="text-secondary small">$${esc(priceUsd)} | ${esc(priceIdr)}</div>
       </div>
     </div>
