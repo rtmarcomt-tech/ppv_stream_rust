@@ -8,6 +8,7 @@ pub mod creator_block;
 pub mod kurs; // <-- WAJIB: expose router /api/kurs
 pub mod me;
 pub mod pay;
+pub mod photos;
 pub mod payment_plugins;
 pub mod setup;
 pub mod stream;
