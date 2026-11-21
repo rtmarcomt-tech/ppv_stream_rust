@@ -18,6 +18,7 @@ Current package version: `0.2.0`
 * Photo originals are stored without video transcoding; video uploads continue through the HLS processing queue
 * Photo delivery checks the signed-in user's owner, admin, allowlist, or completed-purchase entitlement before returning the original image
 * Photos and videos share the existing catalog and content IDs so existing individual purchase and access records remain compatible
+* Initial photo storage and protected image delivery use local disk; configure a local storage backend for photo publishing in this version
 * Creator video upload with extension checks, MIME validation, upload size limits, temporary files, and atomic rename
 * PostgreSQL backed video catalog and ownership records
 * Configurable individual content price
