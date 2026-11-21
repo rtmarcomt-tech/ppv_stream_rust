@@ -427,8 +427,6 @@ pub async fn upload_media(
     .bind(&media_type)
     .execute(&st.pool)
     .await
-    .execute(&st.pool)
-    .await
     {
         let _ = fs::remove_file(&saved_path).await;
         return (
